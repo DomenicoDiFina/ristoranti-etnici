@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sapori dal Mondo</title>
+  <meta name="description" content="Mappa interattiva dei ristoranti etnici intorno a Legnano e Busto Arsizio.">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map" aria-label="Mappa ristoranti"></div>
+
+  <aside id="panel" class="panel">
+    <button id="sheetHandle" class="sheet-handle" aria-label="Apri/chiudi pannello">
+      <span class="grip"></span>
+      <span id="handleText">Caricamento…</span>
+    </button>
+
+    <header class="brand">
+      <div class="logo">🌍</div>
+      <div>
+        <h1>Sapori dal Mondo</h1>
+        <p class="sub">Ristoranti etnici intorno a Legnano &amp; Busto Arsizio</p>
+      </div>
+    </header>
+
+    <div class="panel-scroll">
+      <div class="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.96 12.05l4.25 4.24-1.42 1.42-4.24-4.25A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/></svg>
+        <input id="q" type="search" placeholder="Cerca nome, città, cucina…" autocomplete="off">
+      </div>
+
+      <section class="card">
+        <div class="row-label">Centro</div>
+        <div class="seg" id="centerSeg">
+          <button data-c="legnano">Legnano</button>
+          <button data-c="busto">Busto A.</button>
+          <button data-c="mezzo" class="on">In mezzo</button>
+          <button data-c="gps" title="Usa la mia posizione">📍 Io</button>
+        </div>
+        <div class="row-label radius-label">
+          <span>Raggio</span><b id="radiusVal">30 km</b>
+        </div>
+        <input id="radius" type="range" min="2" max="45" step="1" value="30">
+        <label class="switch">
+          <input id="noFF" type="checkbox">
+          <span class="track"><span class="thumb"></span></span>
+          <span>Nascondi fast food</span>
+        </label>
+      </section>
+
+      <div class="tabs" id="tabs">
+        <button data-t="all" class="on">Tutti</button>
+        <button data-t="want">⭐ Da provare <i id="cWant">0</i></button>
+        <button data-t="done">✓ Provati <i id="cDone">0</i></button>
+      </div>
+
+      <details class="card tree-card" open>
+        <summary>
+          <span>Cucine del mondo</span>
+          <span class="tree-actions">
+            <button id="selAll" type="button">Tutte</button>
+            <button id="selNone" type="button">Nessuna</button>
+          </span>
+        </summary>
+        <div id="tree" class="tree"></div>
+      </details>
+
+      <div class="results-head">
+        <b id="resCount">–</b>
+        <button id="surprise" class="btn-ghost" type="button">🎲 Sorprendimi</button>
+      </div>
+      <ul id="list" class="list"></ul>
+      <button id="more" class="btn-more" type="button" hidden>Mostra altri</button>
+
+      <footer class="foot">
+        Dati <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> contributors,
+        aggiornati al <span id="gen"></span>. Manca un locale?
+        <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">Aggiungilo su OSM</a>.
+      </footer>
+    </div>
+  </aside>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
