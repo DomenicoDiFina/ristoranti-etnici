@@ -61,12 +61,14 @@
   }
 
   let toastT;
-  function toast(msg) {
+  function toast(msg, { html = false, big = false, ms = 2600 } = {}) {
     const t = $('#toast');
-    t.textContent = msg;
+    if (html) t.innerHTML = msg;
+    else t.textContent = msg;
+    t.classList.toggle('big', big);
     t.classList.add('show');
     clearTimeout(toastT);
-    toastT = setTimeout(() => t.classList.remove('show'), 2600);
+    toastT = setTimeout(() => t.classList.remove('show'), ms);
   }
 
   function savePrefs() {
@@ -417,6 +419,49 @@
       const p = pool[Math.floor(Math.random() * pool.length)];
       toast(`🎲 Stasera: ${p.n}`);
       focusPlace(p);
+    });
+
+    // cucina a caso tra quelle presenti nel raggio e mai provate (nessun locale segnato ✓)
+    $('#randCuisine').addEventListener('click', () => {
+      const tried = new Set();
+      for (const p of places) if (status[p.id] === 'done') p.c.forEach((c) => tried.add(c));
+      const avail = new Map();
+      for (const p of places) {
+        if (p.dist > state.radius) break;
+        if (state.noFF && p.ff) continue;
+        for (const c of p.c) avail.set(c, (avail.get(c) || 0) + 1);
+      }
+      const pool = [...avail.keys()].filter((c) => !tried.has(c) && !c.includes('(mista)'));
+      if (!pool.length) return toast('🏆 Hai provato tutte le cucine nel raggio! Prova ad allargarlo');
+      const rnd = () => pool[Math.floor(Math.random() * pool.length)];
+      const pick = rnd();
+      const label = (c) => `${flagHtml(cuisines[c].flag)}${esc(c)}`;
+      const btn = $('#randCuisine');
+      btn.disabled = true;
+
+      const STEPS = 14;
+      let i = 0;
+      const spin = () => {
+        if (i < STEPS) {
+          toast(label(rnd()), { html: true, big: true, ms: 1500 });
+          i += 1;
+          setTimeout(spin, 50 + i * 14);
+          return;
+        }
+        btn.disabled = false;
+        state.sel = new Set([pick]);
+        state.tab = 'all';
+        state.q = '';
+        $('#q').value = '';
+        document.querySelectorAll('#tabs button').forEach((x) => x.classList.toggle('on', x.dataset.t === 'all'));
+        document.querySelector(`.cont[data-cont="${cuisines[pick].cont}"]`)?.classList.add('open');
+        refresh();
+        const n = avail.get(pick);
+        const howMany = state.top && n > TOP_N ? `i ${TOP_N} migliori su ${n}` : `${n} ${n === 1 ? 'locale' : 'locali'}`;
+        toast(`🌍 Stasera: ${label(pick)} · ${howMany}`, { html: true, big: true, ms: 4000 });
+        if (visible.length) map.fitBounds(visible.map((p) => [p.lat, p.lon]), { ...fitPad(), maxZoom: 15 });
+      };
+      spin();
     });
 
     document.addEventListener('click', (e) => {
