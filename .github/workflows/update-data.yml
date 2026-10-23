@@ -17,6 +17,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python tools/build.py
+        env:
+          GOOGLE_PLACES_KEY: ${{ secrets.GOOGLE_PLACES_KEY }}
       - name: Commit se cambiato
         run: |
           git config user.name "github-actions[bot]"

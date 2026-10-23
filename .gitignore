@@ -1,0 +1,4 @@
+# chiave Google e cache delle risposte API: mai su git
+tools/.places_key
+tools/.cache/
+__pycache__/

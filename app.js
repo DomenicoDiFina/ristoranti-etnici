@@ -7,6 +7,11 @@
     mezzo: { ll: [45.6040, 8.8900], name: 'Legnano / Busto' },
   };
   const PAGE = 80;
+  const MAX_RADIUS = 30;
+  const TOP_N = 10;
+  // classifica: stelle "pesate" sul numero di recensioni (media bayesiana),
+  // meno 0,02 stelle per km: a parità di voto vince il più vicino
+  const PRIOR = 3.9, PRIOR_WEIGHT = 15, KM_PENALTY = 0.02;
   const $ = (s) => document.querySelector(s);
 
   // ---------- storage (per-viewer, best effort) ----------
@@ -20,8 +25,10 @@
   const state = {
     centerKey: prefs.centerKey && prefs.centerKey !== 'gps' ? prefs.centerKey : 'mezzo',
     center: null,
-    radius: prefs.radius || 30,
+    radius: Math.min(prefs.radius || MAX_RADIUS, MAX_RADIUS),
     noFF: !!prefs.noFF,
+    top: prefs.top ?? true,
+    sort: prefs.sort || 'best',
     q: '',
     tab: 'all',
     sel: null,
@@ -63,8 +70,17 @@
   }
 
   function savePrefs() {
-    store.set('se-prefs', { centerKey: state.centerKey, radius: state.radius, noFF: state.noFF, sel: [...state.sel] });
+    store.set('se-prefs', {
+      centerKey: state.centerKey, radius: state.radius, noFF: state.noFF, top: state.top, sort: state.sort,
+      off: Object.keys(cuisines).filter((n) => !state.sel.has(n)),
+    });
   }
+
+  const quality = (p) => (p.r ? (p.r * p.rc + PRIOR * PRIOR_WEIGHT) / (p.rc + PRIOR_WEIGHT) : PRIOR - 0.4);
+  const score = (p) => quality(p) - KM_PENALTY * p.dist;
+  const fmtStars = (p) => (p.r
+    ? `<span class="stars">★ ${p.r.toFixed(1).replace('.', ',')}</span> <span class="rc">(${p.rc.toLocaleString('it-IT')})</span>`
+    : '');
 
   // ---------- map ----------
   const map = L.map('map', { zoomControl: false, preferCanvas: false }).setView(state.center, 11);
@@ -72,7 +88,7 @@
   const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
   L.tileLayer(`${ESRI}World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
     maxZoom: 19, maxNativeZoom: 16,
-    attribution: 'Ristoranti &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Mappa &copy; Esri, HERE, Garmin',
+    attribution: 'Ristoranti &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, Google · Mappa &copy; Esri, HERE, Garmin',
   }).addTo(map);
   L.tileLayer(`${ESRI}World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, maxNativeZoom: 16, pane: 'shadowPane' }).addTo(map);
 
@@ -118,8 +134,11 @@
     const where = [p.addr, p.city].filter(Boolean).join(', ');
     const web = p.web ? (p.web.startsWith('http') ? p.web : `https://${p.web}`) : '';
     const gq = encodeURIComponent([p.n, p.addr, p.city].filter(Boolean).join(' '));
+    const gmaps = p.g || `https://www.google.com/maps/search/?api=1&query=${gq}`;
     return `<div class="pop">
       <h3>${esc(p.n)}</h3>
+      ${p.r ? `<div class="rating">${fmtStars(p)} <span class="rc">su Google</span>${p.rank ? `<span class="rank">#${p.rank} ${esc(p.rankOf)}</span>` : ''}</div>` : ''}
+      ${p.tc ? '<div class="info warn"><span>⚠️</span><span>Chiuso temporaneamente secondo Google</span></div>' : ''}
       <div class="info"><span>📏</span><span>${fmtKm(p.dist)} da ${esc(state.centerName)}${p.ff ? ' · fast food' : ''}</span></div>
       <div class="tags">${tags}</div>
       ${where ? `<div class="info"><span>📍</span><span>${esc(where)}</span></div>` : ''}
@@ -129,7 +148,7 @@
       <div class="actions">
         <button data-act="want" data-id="${p.id}" class="want ${st === 'want' ? 'on' : ''}">⭐ ${st === 'want' ? 'Da provare!' : 'Da provare'}</button>
         <button data-act="done" data-id="${p.id}" class="done ${st === 'done' ? 'on' : ''}">✓ ${st === 'done' ? 'Provato!' : 'Provato'}</button>
-        <a href="https://www.google.com/maps/search/?api=1&query=${gq}" target="_blank" rel="noopener">Google Maps</a>
+        <a href="${esc(gmaps)}" target="_blank" rel="noopener">Google Maps</a>
         <a class="primary" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}" target="_blank" rel="noopener">Indicazioni →</a>
       </div>
     </div>`;
@@ -227,16 +246,38 @@
     if (!keepLimit) state.limit = PAGE;
     const q = norm(state.q.trim());
     const counts = {};
-    visible = [];
+    const byCuisine = {};
+    let cands = [];
     for (const p of places) {
       if (p.dist > state.radius) break; // places sorted by distance
       if (state.noFF && p.ff) continue;
       if (state.tab !== 'all' && status[p.id] !== state.tab) continue;
       if (q && !p.search.includes(q)) continue;
-      for (const c of p.c) counts[c] = (counts[c] || 0) + 1;
-      if (p.c.some((c) => state.sel.has(c))) visible.push(p);
+      p.score = score(p);
+      for (const c of p.c) {
+        counts[c] = (counts[c] || 0) + 1;
+        (byCuisine[c] ||= []).push(p);
+      }
+      if (p.c.some((c) => state.sel.has(c))) cands.push(p);
     }
     syncTree(counts);
+
+    // classifica per cucina: posizione (#1, #2…) e, se attivo, solo i primi TOP_N
+    for (const p of cands) p.rank = 0;
+    const topMode = state.top && state.tab === 'all' && !q;
+    const keep = new Set();
+    for (const c of state.sel) {
+      const list = (byCuisine[c] || []).sort((a, b) => b.score - a.score);
+      list.forEach((p, i) => {
+        if (!p.rank || i + 1 < p.rank || (i + 1 === p.rank && c === p.c[0])) { p.rank = i + 1; p.rankOf = c; }
+        if (i < TOP_N) keep.add(p);
+      });
+    }
+    const total = cands.length;
+    if (topMode) cands = cands.filter((p) => keep.has(p));
+    visible = state.sort === 'best' ? cands.sort((a, b) => b.score - a.score) : cands.sort((a, b) => a.dist - b.dist);
+    $('#topNote').textContent = topMode && visible.length < total
+      ? `i ${TOP_N} migliori per cucina, su ${total}` : '';
 
     cluster.clearLayers();
     cluster.addLayers(visible.map(getMarker));
@@ -262,7 +303,7 @@
       const st = status[p.id];
       return `<li class="item" data-id="${p.id}" style="--c:${p.color}">
         <span class="badge">${flagHtml(cu.flag)}</span>
-        <span style="min-width:0"><div class="t">${esc(p.n)}</div><div class="m">${esc(p.c.join(' · '))}${p.city ? ' — ' + esc(p.city) : ''}</div></span>
+        <span style="min-width:0"><div class="t">${esc(p.n)}</div><div class="m">${fmtStars(p)}${p.r ? ' · ' : ''}${esc(p.c.join(' · '))}${p.city ? ' — ' + esc(p.city) : ''}</div></span>
         <span class="d">${fmtKm(p.dist)}${st ? `<span class="st ${st}">${st === 'want' ? '★ da provare' : '✓ provato'}</span>` : ''}</span>
       </li>`;
     }).join('');
@@ -315,6 +356,17 @@
 
     $('#noFF').checked = state.noFF;
     $('#noFF').addEventListener('change', (e) => { state.noFF = e.target.checked; refresh(); });
+    $('#topOnly').checked = state.top;
+    $('#topOnly').addEventListener('change', (e) => { state.top = e.target.checked; refresh(); });
+
+    document.querySelectorAll('#sortSeg button').forEach((b) => b.classList.toggle('on', b.dataset.s === state.sort));
+    $('#sortSeg').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      state.sort = b.dataset.s;
+      document.querySelectorAll('#sortSeg button').forEach((x) => x.classList.toggle('on', x === b));
+      refresh();
+    });
 
     $('#centerSeg').addEventListener('click', (e) => {
       const b = e.target.closest('button');
@@ -403,8 +455,10 @@
         };
       });
       const known = new Set(Object.keys(cuisines));
-      state.sel = new Set(Array.isArray(prefs.sel) ? prefs.sel.filter((n) => known.has(n)) : known);
-      if (Array.isArray(prefs.sel) && !state.sel.size) state.sel = new Set(known);
+      // si salvano le cucine escluse, così quelle nuove compaiono già selezionate
+      const off = new Set(Array.isArray(prefs.off) ? prefs.off : []);
+      state.sel = new Set([...known].filter((n) => !off.has(n)));
+      if (!state.sel.size) state.sel = known;
       $('#gen').textContent = new Date(d.meta.generated).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
       buildTree();
       bindUi();

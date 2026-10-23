@@ -122,6 +122,14 @@ input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 4px;
 /* ---------- list ---------- */
 .results-head { display: flex; align-items: center; justify-content: space-between; margin: 4px 2px 8px; }
 .results-head b { font: 600 15px Outfit, sans-serif; }
+.top-note { display: block; color: var(--muted); font-size: 11.5px; }
+.top-note:empty { display: none; }
+.seg-2 { grid-template-columns: 1fr 1fr; margin-bottom: 10px; }
+.stars { color: var(--star); font-weight: 600; }
+.rc { color: var(--muted); font-size: 11.5px; }
+.pop .rating { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; font-size: 14px; }
+.pop .rank { margin-left: auto; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: rgba(255, 212, 59, .12); color: var(--star); }
+.pop .info.warn { color: var(--accent-2); }
 .btn-ghost { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 .btn-ghost:hover { border-color: var(--accent); }
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }

@@ -48,7 +48,12 @@
         <div class="row-label radius-label">
           <span>Raggio</span><b id="radiusVal">30 km</b>
         </div>
-        <input id="radius" type="range" min="2" max="45" step="1" value="30">
+        <input id="radius" type="range" min="2" max="30" step="1" value="30">
+        <label class="switch">
+          <input id="topOnly" type="checkbox" checked>
+          <span class="track"><span class="thumb"></span></span>
+          <span>Solo i 10 migliori per cucina</span>
+        </label>
         <label class="switch">
           <input id="noFF" type="checkbox">
           <span class="track"><span class="thumb"></span></span>
@@ -74,15 +79,20 @@
       </details>
 
       <div class="results-head">
-        <b id="resCount">–</b>
+        <div><b id="resCount">–</b><small id="topNote" class="top-note"></small></div>
         <button id="surprise" class="btn-ghost" type="button">🎲 Sorprendimi</button>
+      </div>
+      <div class="seg seg-2" id="sortSeg">
+        <button data-s="best" class="on">★ Migliori</button>
+        <button data-s="near">📍 Più vicini</button>
       </div>
       <ul id="list" class="list"></ul>
       <button id="more" class="btn-more" type="button" hidden>Mostra altri</button>
 
       <footer class="foot">
         Dati <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a> contributors,
-        aggiornati al <span id="gen"></span>. Manca un locale?
+        e Google Maps (stelle e recensioni), aggiornati al <span id="gen"></span>.
+        Classifica: stelle pesate sul numero di recensioni; a parità di voto vince il più vicino. Manca un locale?
         <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">Aggiungilo su OSM</a>.
       </footer>
     </div>
