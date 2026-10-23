@@ -120,6 +120,15 @@ def best_match(o, cands):
     return best
 
 
+def short_hours(days):
+    """['lunedì: 11:00–23:00', …] -> 'Tutti i giorni 11:00–23:00' o 'lun 11:00–23:00 · mar …'"""
+    parts = [d.split(': ', 1) for d in days]
+    times = [p[1] if len(p) == 2 else p[0] for p in parts]
+    if len(set(times)) == 1:
+        return f'Tutti i giorni {times[0]}'
+    return ' · '.join(f'{p[0][:3]} {t}' for p, t in zip(parts, times))
+
+
 def apply_google(r, g):
     if g.get('rating') is not None:
         r['r'] = g['rating']
@@ -129,17 +138,31 @@ def apply_google(r, g):
     r.setdefault('web', g.get('websiteUri'))
     hours = g.get('regularOpeningHours', {}).get('weekdayDescriptions')
     if hours:
-        r.setdefault('oh', ' · '.join(hours))
+        r.setdefault('oh', short_hours(hours))
     if g.get('businessStatus') == 'CLOSED_TEMPORARILY':
         r['tc'] = 1
     for k in [k for k, v in r.items() if v is None]:
         del r[k]
 
 
+# Google etichetta molte pizzerie-kebab come "turkish_restaurant" e i poke come "american_restaurant":
+# il nome è più affidabile
+NAME_RULES = [
+    (re.compile(r'kebab|kebap|d[oö]ner|kebabbaro', re.I), 'Kebab'),
+    (re.compile(r'pok[eé]\b', re.I), 'Hawaiana / Poke'),
+]
+
+
 def google_place(g):
     loc = g['location']
-    r = {'id': 'g' + g['id'], 'n': g['displayName']['text'], 'lat': round(loc['latitude'], 6),
-         'lon': round(loc['longitude'], 6), 'c': gp.cuisines_of(g)}
+    name = g['displayName']['text']
+    cs = gp.cuisines_of(g)
+    for rx, label in NAME_RULES:
+        if rx.search(name):
+            cs = [label]
+            break
+    r = {'id': 'g' + g['id'], 'n': name, 'lat': round(loc['latitude'], 6),
+         'lon': round(loc['longitude'], 6), 'c': cs}
     types = [g.get('primaryType')] + g.get('types', [])
     sp = []
     for t in types:
