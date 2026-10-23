@@ -101,10 +101,35 @@
     </div>
   </aside>
 
+  <button id="passBtn" class="pass-btn" type="button">🛂 Passaporto <b id="passCount">0</b></button>
+
+  <section id="passport" class="passport" hidden aria-label="Passaporto dei sapori">
+    <div class="pass-inner">
+      <header class="pass-head">
+        <div>
+          <h2>Il nostro passaporto dei sapori</h2>
+          <p class="sub">Ogni paese si colora quando segnate ✓ Provato un suo ristorante. Tratteggiati: i paesi “da provare”.</p>
+        </div>
+        <button id="passClose" class="pass-close" type="button" aria-label="Chiudi">✕</button>
+      </header>
+      <div id="passStats" class="pass-stats"></div>
+      <div class="world-wrap">
+        <div id="worldMap" class="world-map"></div>
+        <div class="pass-legend">
+          <span><i class="lg done"></i>Provato</span>
+          <span><i class="lg want"></i>Da provare</span>
+          <span><i class="lg none"></i>Da scoprire</span>
+        </div>
+      </div>
+      <div id="passList" class="pass-list"></div>
+    </div>
+  </section>
+
   <div id="toast" class="toast" role="status"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
   <script src="app.js"></script>
+  <script src="passport.js"></script>
 </body>
 </html>

@@ -290,6 +290,7 @@
     $('#cDone').textContent = Object.keys(status).length - nW;
     $('#handleText').textContent = `${visible.length} ristoranti · ${state.radius} km`;
     savePrefs();
+    document.dispatchEvent(new CustomEvent('sdm:change'));
   }
 
   function renderList() {
@@ -315,6 +316,7 @@
 
   function focusPlace(p) {
     const m = getMarker(p);
+    if (!cluster.hasLayer(m)) cluster.addLayer(m); // es. dal passaporto, fuori dai filtri attuali
     if (window.innerWidth <= 760) $('#panel').classList.remove('open');
     cluster.zoomToShowLayer(m, () => {
       map.panTo(m.getLatLng());
@@ -507,6 +509,8 @@
       $('#gen').textContent = new Date(d.meta.generated).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
       buildTree();
       bindUi();
+      // interfaccia per passport.js
+      window.SDM = { places, status, cuisines, continents, flagHtml, esc, focusPlace, toast };
       setCenter(state.centerKey, CENTERS[state.centerKey].ll, CENTERS[state.centerKey].name);
     })
     .catch((err) => {
